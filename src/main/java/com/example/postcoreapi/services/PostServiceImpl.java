@@ -1,52 +1,65 @@
 package com.example.postcoreapi.services;
 
 import com.example.postcoreapi.models.PostModel;
+import com.example.postcoreapi.repository.PostEntity;
+import com.example.postcoreapi.repository.PostRepository;
+import org.modelmapper.ModelMapper;
+import org.modelmapper.convention.MatchingStrategies;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
+
 @Service
 public class PostServiceImpl implements PostService {
-    private static final HashMap<String, PostModel> postMap = new HashMap<>();
+
+    @Autowired
+    PostRepository postRepository;
+
+    private static ModelMapper modelMapper = new ModelMapper();
 
     static {
-        PostModel postModel1 = new PostModel(UUID.randomUUID().toString(), "1", "2",
-                "Clothes", "Ready to Ship");
-        PostModel postModel2 = new PostModel(UUID.randomUUID().toString(), "2", "1",
-                "Kitchenware", "Arrived");
-        PostModel postModel3 = new PostModel(UUID.randomUUID().toString(), "1", "3",
-                "Appliances", "Shipping");
-        postMap.put(postModel1.getPostId() ,postModel1);
-        postMap.put(postModel2.getPostId() ,postModel2);
-        postMap.put(postModel3.getPostId() ,postModel3);
+        modelMapper.getConfiguration().setMatchingStrategy(MatchingStrategies.STRICT);
     }
 
     @Override
     public void createPost(PostModel postModel) {
         postModel.setPostId(UUID.randomUUID().toString());
-        postMap.put(postModel.getPostId(), postModel);
+        PostEntity postEntity = modelMapper.map(postModel, PostEntity.class);
+        postRepository.save(postEntity);
     }
 
     @Override
     public List<PostModel> getAllPosts() {
-        return new ArrayList<>(postMap.values());
+        return postRepository.getPostEntitiesBy().stream()
+                .map(post -> modelMapper.map(post, PostModel.class))
+                .collect(Collectors.toList());
     }
 
     @Override
     public PostModel getPostById(String id) {
-        return postMap.get(id);
+        PostEntity postEntity = postRepository.getPostEntityByPostId(id);
+        return modelMapper.map(postEntity, PostModel.class);
     }
 
     @Override
     public void updatePostById(String id, PostModel postModel) {
-        postModel.setPostId(id);
-        postMap.put(id, postModel);
+        PostEntity postEntity = modelMapper.map(postModel, PostEntity.class);
+        postEntity.setPostId(id);
+        PostEntity dbEntity = postRepository.getPostEntityByPostId(id);
+
+        postEntity.setId(dbEntity.getId());
+
+        postRepository.save(postEntity);
+
     }
 
     @Override
     public void deletePostById(String id) {
-        postMap.remove(id);
+        postRepository.deletePostEntityByPostId(id);
     }
 }
